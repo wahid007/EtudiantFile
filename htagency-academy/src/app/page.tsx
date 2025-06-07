@@ -1,6 +1,7 @@
 "use client"; // Required for useState and event handlers
 
 import { useState, useMemo } from 'react';
+import Link from 'next/link'; // Import Link
 import { Course } from '@/types/course';
 import {
   Card,
@@ -148,9 +149,10 @@ const HomePage = () => {
       {filteredCourses.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredCourses.map((course) => (
-            <Card key={course.id} data-testid="course-card" className="flex flex-col bg-white hover:shadow-lg transition-shadow duration-200 rounded-xl border border-slate-200"> {/* Added data-testid */}
-              <CardHeader className="pb-4">
-                <CardTitle className="text-lg sm:text-xl text-slate-800">{course.name}</CardTitle>
+            <Link key={course.id} href={`/course/${course.id}`} className="flex"> {/* Wrap Card with Link, key on Link */}
+              <Card data-testid="course-card" className="flex flex-col w-full bg-white hover:shadow-lg transition-shadow duration-200 rounded-xl border border-slate-200"> {/* Ensure card takes full width */}
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-lg sm:text-xl text-slate-800">{course.name}</CardTitle>
                 <CardDescription className="text-sm text-slate-600 pt-1">
                   {capitalize(course.topic)} - <span className={`font-medium ${getDifficultyClass(course.difficulty)}`}>
                     {capitalize(course.difficulty)}
@@ -165,6 +167,7 @@ const HomePage = () => {
                 <span className="text-lg font-semibold text-blue-600">${course.price.toFixed(2)}</span>
               </CardFooter>
             </Card>
+            </Link>
           ))}
         </div>
       ) : (
