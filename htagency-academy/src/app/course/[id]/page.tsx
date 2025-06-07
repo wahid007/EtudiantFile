@@ -1,8 +1,12 @@
-import Link from 'next/link';
-import { Course } from '@/types/course'; // Assuming Course interface is in src/types/course.ts
-// Assuming mockCourses is imported from a file, or defined here for simplicity
-// For this example, let's redefine mockCourses here. In a real app, this would be a shared import.
+"use client"; // Make it a client component for hooks and event handlers
 
+import Link from 'next/link';
+import { Course } from '@/types/course';
+import { useFavorites } from '@/context/FavoritesContext'; // Import useFavorites
+import { Button } from '@/components/ui/button'; // Import Button
+import { Heart } from 'lucide-react'; // Import Heart icon
+
+// Mock data (should ideally be fetched or from a shared source)
 const mockCourses: Course[] = [
   {
     "id": "course_001",
@@ -57,10 +61,10 @@ interface CourseDetailPageProps {
   };
 }
 
-// Helper to capitalize
 const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 const CourseDetailPage = ({ params }: CourseDetailPageProps) => {
+  const { addFavorite, removeFavorite, isFavorite } = useFavorites();
   const course = mockCourses.find(c => c.id === params.id);
 
   if (!course) {
@@ -74,6 +78,16 @@ const CourseDetailPage = ({ params }: CourseDetailPageProps) => {
     );
   }
 
+  const isFav = isFavorite(course.id);
+
+  const handleFavoriteToggle = () => {
+    if (isFav) {
+      removeFavorite(course.id);
+    } else {
+      addFavorite(course.id);
+    }
+  };
+
   const getDifficultyClass = (difficulty: Course['difficulty']) => {
     switch (difficulty) {
       case 'Beginner': return 'text-green-700 bg-green-100';
@@ -86,22 +100,40 @@ const CourseDetailPage = ({ params }: CourseDetailPageProps) => {
   return (
     <div className="container mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
       <div className="bg-white shadow-lg rounded-xl p-6 md:p-8 border border-slate-200">
-        <h1 className="text-3xl sm:text-4xl font-bold text-slate-800 mb-4">{course.name}</h1>
+        <div className="flex justify-between items-start mb-4">
+          <h1 className="text-3xl sm:text-4xl font-bold text-slate-800">{course.name}</h1>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleFavoriteToggle}
+            aria-label={isFav ? "Remove from favorites" : "Add to favorites"}
+            className="h-10 w-10 text-slate-500 hover:text-red-500 data-[state=on]:text-red-500" // General styling
+          >
+            <Heart
+              className={`h-6 w-6 ${isFav ? 'text-red-500' : 'text-slate-400'}`}
+              fill={isFav ? "currentColor" : "none"}
+            />
+          </Button>
+        </div>
 
-        <div className="flex flex-wrap gap-4 mb-6 text-sm">
-          <span className="font-semibold text-slate-700">Topic:</span>
-          <span className="text-blue-600 font-medium">{capitalize(course.topic)}</span>
-          <span className="font-semibold text-slate-700">Difficulty:</span>
-          <span className={`px-3 py-1 rounded-full font-medium ${getDifficultyClass(course.difficulty)}`}>
-            {capitalize(course.difficulty)}
-          </span>
+        <div className="flex flex-wrap gap-x-6 gap-y-2 items-center mb-6 text-sm">
+          <div className="flex items-center">
+            <span className="font-semibold text-slate-700 mr-2">Topic:</span>
+            <span className="text-blue-600 font-medium">{capitalize(course.topic)}</span>
+          </div>
+          <div className="flex items-center">
+            <span className="font-semibold text-slate-700 mr-2">Difficulty:</span>
+            <span className={`px-3 py-1 rounded-full font-medium text-xs ${getDifficultyClass(course.difficulty)}`}>
+              {capitalize(course.difficulty)}
+            </span>
+          </div>
         </div>
 
         <div className="prose max-w-none text-slate-700 mb-6">
           <p>{course.description}</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8 text-slate-700">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 text-slate-700">
           <div>
             <h2 className="text-lg font-semibold text-slate-800 mb-1">Duration</h2>
             <p>{course.duration}</p>
@@ -111,7 +143,6 @@ const CourseDetailPage = ({ params }: CourseDetailPageProps) => {
             <p className="text-2xl font-bold text-blue-600">${course.price.toFixed(2)}</p>
           </div>
         </div>
-
       </div>
 
       <div className="text-center mt-8">

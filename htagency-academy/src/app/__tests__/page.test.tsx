@@ -1,27 +1,75 @@
-import { render, screen, fireEvent, within } from '@testing-library/react';
-import userEvent from '@testing-library/user-event'; // Import userEvent
+import { render, screen, fireEvent, within, waitFor } from '@testing-library/react'; // Added waitFor
+import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
-import HomePage from '../page'; // Adjust path if HomePage is default export from src/app/page.tsx
+import HomePage from '../page';
+import { FavoritesProvider } from '@/context/FavoritesContext'; // Import FavoritesProvider
+import React from 'react';
+import { usePathname, useRouter } from 'next/navigation'; // Import usePathname and useRouter
 
-// Mock useRouter from next/navigation if needed by components under test, not directly by HomePage
+// Mock next/navigation
+const mockPush = jest.fn();
 jest.mock('next/navigation', () => ({
-  useRouter: jest.fn(),
-  usePathname: jest.fn().mockReturnValue('/'), // Mock pathname if used by Select or other child components
-  useSearchParams: jest.fn().mockReturnValue(new URLSearchParams()), // Mock searchParams if used
+  useRouter: () => ({ // Return an object with the push mock
+    push: mockPush,
+    replace: jest.fn(), // Add other methods if needed
+    back: jest.fn(),
+    forward: jest.fn(),
+    prefetch: jest.fn(),
+    refresh: jest.fn(),
+  }),
+  usePathname: jest.fn().mockReturnValue('/'),
+  useSearchParams: jest.fn().mockReturnValue(new URLSearchParams()),
 }));
 
+// Mock localStorage for FavoritesContext
+let store: { [key: string]: string } = {};
+const localStorageMock = {
+  getItem: jest.fn((key: string) => store[key] || null),
+  setItem: jest.fn((key: string, value: string) => {
+    store[key] = value.toString();
+  }),
+  removeItem: jest.fn((key: string) => { delete store[key]; }),
+  clear: jest.fn(() => { store = {}; }),
+};
+Object.defineProperty(window, 'localStorage', { value: localStorageMock });
 
-describe('HomePage Filtering', () => {
-  // Helper to find all rendered course names
-  const getRenderedCourseNames = () => {
-    const courseCards = screen.queryAllByTestId('course-card'); // Need to add data-testid to Card in page.tsx
+
+// Helper component to wrap HomePage with Providers
+const renderHomePageWithProviders = () => {
+  return render(
+    <FavoritesProvider>
+      <HomePage />
+    </FavoritesProvider>
+  );
+};
+
+// Define coursesMock at a higher scope accessible to all describe blocks within 'HomePage Tests'
+const coursesMock = [
+  { id: "course_001", name: "Introduction to Web Development", topic: "Web Development", difficulty: "Beginner" },
+  { id: "course_002", name: "Advanced JavaScript Concepts", topic: "Web Development", difficulty: "Intermediate" },
+  { id: "course_003", name: "Python for Data Science", topic: "Data Science", difficulty: "Intermediate" },
+  { id: "course_004", name: "Cybersecurity Essentials", topic: "Cybersecurity", difficulty: "Beginner" },
+  { id: "course_005", name: "Mastering React and Next.js", topic: "Web Development", difficulty: "Advanced" }
+];
+
+
+describe('HomePage Tests', () => {
+  beforeEach(() => {
+    // Clear localStorage mock and spies before each test in this suite
+    localStorageMock.clear();
+    jest.clearAllMocks(); // Clears all mocks, including localStorageMock calls and next/navigation
+  });
+
+  // --- Filtering Tests (Existing tests, wrapped with Provider) ---
+  describe('Filtering Logic', () => {
+    // Helper to find all rendered course names (can remain here or be moved up if needed by other suites)
+    const getRenderedCourseNames = () => {
+    const courseCards = screen.queryAllByTestId('course-card');
     if (!courseCards.length) {
-        // A more robust way if CardTitle always has the name
-        return screen.queryAllByRole('heading', { level: 1 , name: /Our Courses/i}).length // page title
+        return screen.queryAllByRole('heading', { level: 1 , name: /Our Courses/i}).length
         ? screen.queryAllByRole('heading', { name: /(Introduction to Web Development|Advanced JavaScript Concepts|Python for Data Science|Cybersecurity Essentials|Mastering React and Next\.js)/i })
             .map(h => h.textContent)
         : [];
-
     }
     return courseCards.map(card => {
       const titleElement = within(card).queryByRole('heading');
@@ -29,17 +77,10 @@ describe('HomePage Filtering', () => {
     });
   };
 
-  const coursesMock = [ // Simplified from page.tsx for test clarity
-      { name: "Introduction to Web Development", topic: "Web Development", difficulty: "Beginner" },
-      { name: "Advanced JavaScript Concepts", topic: "Web Development", difficulty: "Intermediate" },
-      { name: "Python for Data Science", topic: "Data Science", difficulty: "Intermediate" },
-      { name: "Cybersecurity Essentials", topic: "Cybersecurity", difficulty: "Beginner" },
-      { name: "Mastering React and Next.js", topic: "Web Development", difficulty: "Advanced" }
-  ];
-
+  // coursesMock is now defined above, accessible here
 
   test('renders all courses initially', () => {
-    render(<HomePage />);
+    renderHomePageWithProviders();
     // Check for the main title
     expect(screen.getByRole('heading', { name: /Our Courses/i })).toBeInTheDocument();
 
@@ -52,7 +93,7 @@ describe('HomePage Filtering', () => {
   });
 
   test('filters by topic "Data Science"', async () => {
-    render(<HomePage />);
+    renderHomePageWithProviders();
 
     const topicSelectTrigger = screen.getByLabelText(/Filter by Topic/i);
     await userEvent.click(topicSelectTrigger); // Use userEvent.click
@@ -68,7 +109,7 @@ describe('HomePage Filtering', () => {
   });
 
   test('filters by difficulty "Advanced"', async () => {
-    render(<HomePage />);
+    renderHomePageWithProviders();
 
     const difficultySelectTrigger = screen.getByLabelText(/Filter by Difficulty/i);
     await userEvent.click(difficultySelectTrigger); // Use userEvent.click
@@ -82,7 +123,7 @@ describe('HomePage Filtering', () => {
   });
 
   test('filters by topic "Web Development" and difficulty "Beginner"', async () => {
-    render(<HomePage />);
+    renderHomePageWithProviders();
 
     // Filter by topic
     const topicSelectTrigger = screen.getByLabelText(/Filter by Topic/i);
@@ -103,7 +144,7 @@ describe('HomePage Filtering', () => {
   });
 
   test('shows "No courses match" message when filters result in no matches', async () => {
-    render(<HomePage />);
+    renderHomePageWithProviders();
 
     const topicSelectTrigger = screen.getByLabelText(/Filter by Topic/i);
     await userEvent.click(topicSelectTrigger); // Use userEvent.click
@@ -121,7 +162,62 @@ describe('HomePage Filtering', () => {
   });
 });
 
-// Note: For shadcn Select components, fireEvent.mouseDown on the trigger
+  // --- Favorites Functionality Tests ---
+  describe('Favorites Functionality', () => {
+    test('toggles favorite status for a course', async () => {
+      renderHomePageWithProviders();
+      const courseToTest = coursesMock[0]; // Introduction to Web Development
+
+      // Find the favorite button for the first course.
+      // We need a way to target a specific card's button.
+      // Assuming CardTitle contains the course name and is within the same Card as the button.
+      const courseCard = screen.getByText(courseToTest.name).closest('[data-testid="course-card"]');
+      expect(courseCard).toBeInTheDocument();
+
+      // Find the favorite button within this card
+      // The button's aria-label changes, so we find it by role within the card
+      const favoriteButton = within(courseCard!).getByRole('button', { name: /add to favorites/i }); // Initial state
+      expect(favoriteButton).toBeInTheDocument();
+
+      // 1. Add to favorites
+      await userEvent.click(favoriteButton);
+
+      // Aria-label should change, localStorage should be called
+      expect(localStorageMock.setItem).toHaveBeenCalledWith('htacademy-favorites', JSON.stringify([courseToTest.id]));
+      // The button's aria-label should now be "Remove from favorites"
+      // Need waitFor because the state update and re-render might take a moment
+      await waitFor(() => {
+        expect(within(courseCard!).getByRole('button', { name: /remove from favorites/i })).toBeInTheDocument();
+      });
+
+      // 2. Remove from favorites
+      const removeFavoriteButton = within(courseCard!).getByRole('button', { name: /remove from favorites/i });
+      await userEvent.click(removeFavoriteButton);
+
+      expect(localStorageMock.setItem).toHaveBeenCalledWith('htacademy-favorites', JSON.stringify([]));
+      await waitFor(() => {
+        expect(within(courseCard!).getByRole('button', { name: /add to favorites/i })).toBeInTheDocument();
+      });
+    });
+
+    test('favorite button click does not navigate', async () => {
+      // This test implies that the Link's navigation was prevented.
+      // We can check this by ensuring the pathname (mocked) doesn't change
+      // or more simply, rely on the e.stopPropagation() and e.preventDefault() in the handler.
+      // A full navigation test is complex with mocks. Here, we trust the event handlers.
+      renderHomePageWithProviders();
+      const courseToTest = coursesMock[0];
+      const courseCard = screen.getByText(courseToTest.name).closest('[data-testid="course-card"]');
+      const favoriteButton = within(courseCard!).getByRole('button', { name: /add to favorites/i });
+
+      // Click should not throw error or change mocked pathname
+      await userEvent.click(favoriteButton);
+      expect(mockPush).not.toHaveBeenCalled(); // Check that router.push was not called
+    });
+  });
+});
+
+// Note: For shadcn Select components, userEvent.click on the trigger
 // then fireEvent.click on the desired SelectItem (found by text or role='option')
 // is a common way to simulate selection.
 // The actual text rendered in SelectItem is what you should target.

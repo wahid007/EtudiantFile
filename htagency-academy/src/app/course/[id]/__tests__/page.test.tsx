@@ -1,14 +1,38 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react'; // Added waitFor
+import userEvent from '@testing-library/user-event'; // Import userEvent
 import '@testing-library/jest-dom';
-import CourseDetailPage from '../page'; // Assumes default export from ../page.tsx
-import { Course } from '@/types/course'; // Assuming Course interface is in src/types/course.ts
+import CourseDetailPage from '../page';
+import { Course } from '@/types/course';
+import { FavoritesProvider } from '@/context/FavoritesContext'; // Import FavoritesProvider
+import React from 'react';
 
 // Mock next/navigation
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
-  usePathname: jest.fn().mockReturnValue('/course/some-id'), // Example pathname
+  usePathname: jest.fn().mockReturnValue('/course/some-id'),
   useSearchParams: jest.fn().mockReturnValue(new URLSearchParams()),
 }));
+
+// Mock localStorage for FavoritesContext
+let store: { [key: string]: string } = {};
+const localStorageMock = {
+  getItem: jest.fn((key: string) => store[key] || null),
+  setItem: jest.fn((key: string, value: string) => {
+    store[key] = value.toString();
+  }),
+  removeItem: jest.fn((key: string) => { delete store[key]; }),
+  clear: jest.fn(() => { store = {}; }),
+};
+Object.defineProperty(window, 'localStorage', { value: localStorageMock });
+
+// Helper component to wrap CourseDetailPage with Providers
+const renderDetailPageWithProviders = (params: { id: string }) => {
+  return render(
+    <FavoritesProvider>
+      <CourseDetailPage params={params} />
+    </FavoritesProvider>
+  );
+};
 
 // Re-define mockCourses here for test context or import if refactored to a shared location
 const mockCoursesForTest: Course[] = [
@@ -34,12 +58,18 @@ const mockCoursesForTest: Course[] = [
 ];
 
 describe('CourseDetailPage', () => {
+  beforeEach(() => {
+    // Clear localStorage mock and spies before each test in this suite
+    localStorageMock.clear();
+    jest.clearAllMocks();
+  });
+
   describe('Course Found', () => {
     const selectedCourse = mockCoursesForTest[0];
 
     beforeEach(() => {
       // Render the component with params for the selected course
-      render(<CourseDetailPage params={{ id: selectedCourse.id }} />);
+      renderDetailPageWithProviders({ id: selectedCourse.id });
     });
 
     test('displays the course name as a main heading', () => {
@@ -95,7 +125,7 @@ describe('CourseDetailPage', () => {
 
   describe('Course Not Found', () => {
     beforeEach(() => {
-      render(<CourseDetailPage params={{ id: "non_existent_id" }} />);
+      renderDetailPageWithProviders({ id: "non_existent_id" });
     });
 
     test('displays the "Course not found" message', () => {
@@ -106,6 +136,38 @@ describe('CourseDetailPage', () => {
       const backLink = screen.getByRole('link', { name: /Back to Courses/i });
       expect(backLink).toBeInTheDocument();
       expect(backLink).toHaveAttribute('href', '/');
+    });
+  });
+
+  describe('Favorites Functionality on Detail Page', () => {
+    const courseToTest = mockCoursesForTest[0]; // Use course_001
+
+    test('toggles favorite status for the displayed course', async () => {
+      renderDetailPageWithProviders({ id: courseToTest.id });
+
+      // Find the favorite button (aria-label changes based on state)
+      // Initial state: Add to favorites
+      const addButton = screen.getByRole('button', { name: /add to favorites/i });
+      expect(addButton).toBeInTheDocument();
+
+      // 1. Add to favorites
+      await userEvent.click(addButton);
+
+      expect(localStorageMock.setItem).toHaveBeenCalledWith('htacademy-favorites', JSON.stringify([courseToTest.id]));
+      // Button should now be "Remove from favorites"
+      // Need waitFor because the state update and re-render might take a moment
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /remove from favorites/i })).toBeInTheDocument();
+      });
+
+      // 2. Remove from favorites
+      const removeButton = screen.getByRole('button', { name: /remove from favorites/i });
+      await userEvent.click(removeButton);
+
+      expect(localStorageMock.setItem).toHaveBeenCalledWith('htacademy-favorites', JSON.stringify([]));
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /add to favorites/i })).toBeInTheDocument();
+      });
     });
   });
 });

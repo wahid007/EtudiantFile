@@ -1,11 +1,10 @@
-"use client"; // Required for useState and event handlers
+"use client";
 
-import { useState, useMemo, MouseEvent } from 'react'; // Added MouseEvent
 import Link from 'next/link';
 import { Course } from '@/types/course';
-import { useFavorites } from '@/context/FavoritesContext'; // Import useFavorites
-import { Button } from '@/components/ui/button'; // Import Button
-import { Heart } from 'lucide-react'; // Import Heart icon
+import { useFavorites } from '@/context/FavoritesContext';
+import { Button } from '@/components/ui/button';
+import { Heart } from 'lucide-react';
 import {
   Card,
   CardContent,
@@ -14,16 +13,9 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
+import { MouseEvent } from 'react'; // For MouseEvent type on handler
 
-// Mock data
+// Mock data (ideally from a shared source)
 const mockCourses: Course[] = [
   {
     "id": "course_001",
@@ -72,98 +64,48 @@ const mockCourses: Course[] = [
   }
 ];
 
-const ALL_FILTER_VALUE = "all";
+// Helper to capitalize
+const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
-const HomePage = () => {
-  const [selectedTopic, setSelectedTopic] = useState<string>(ALL_FILTER_VALUE);
-  const [selectedDifficulty, setSelectedDifficulty] = useState<string>(ALL_FILTER_VALUE);
-  const { addFavorite, removeFavorite, isFavorite } = useFavorites(); // Use favorites context
+// Helper for difficulty class (consistent with main page)
+const getDifficultyClass = (difficulty: Course['difficulty']) => {
+  switch (difficulty) {
+    case 'Beginner': return 'text-green-600';
+    case 'Intermediate': return 'text-yellow-600';
+    case 'Advanced': return 'text-red-600';
+    default: return '';
+  }
+};
 
-  const topics = useMemo(() => {
-    const uniqueTopics = new Set(mockCourses.map(course => course.topic));
-    return [ALL_FILTER_VALUE, ...Array.from(uniqueTopics)];
-  }, []);
 
-  const difficulties = useMemo(() => {
-    const uniqueDifficulties = new Set(mockCourses.map(course => course.difficulty));
-    return [ALL_FILTER_VALUE, ...Array.from(uniqueDifficulties)];
-  }, []);
+const FavoritesPage = () => {
+  const { favoriteIds, addFavorite, removeFavorite, isFavorite } = useFavorites();
 
-  const filteredCourses = useMemo(() => {
-    return mockCourses.filter(course => {
-      const topicMatch = selectedTopic === ALL_FILTER_VALUE || course.topic === selectedTopic;
-      const difficultyMatch = selectedDifficulty === ALL_FILTER_VALUE || course.difficulty === selectedDifficulty;
-      return topicMatch && difficultyMatch;
-    });
-  }, [selectedTopic, selectedDifficulty]);
-
-  const getDifficultyClass = (difficulty: Course['difficulty']) => {
-    switch (difficulty) {
-      case 'Beginner': return 'text-green-600';
-      case 'Intermediate': return 'text-yellow-600';
-      case 'Advanced': return 'text-red-600';
-      default: return '';
-    }
-  };
-
-  const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+  const favoriteCourses = mockCourses.filter(course => favoriteIds.includes(course.id));
 
   return (
     <div className="space-y-8">
-      <h1 className="text-3xl font-bold text-center text-slate-800">Our Courses</h1>
+      <h1 className="text-3xl font-bold text-center text-slate-800">My Favorite Courses</h1>
 
-      {/* Filter Controls Section */}
-      <div className="p-4 sm:p-6 bg-white rounded-lg shadow-sm border border-slate-200">
-        <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 justify-center items-end">
-          <div className="flex-1 sm:flex-grow-0 flex flex-col space-y-1.5 min-w-[180px] sm:min-w-[200px]">
-            <Label htmlFor="topic-filter" className="text-sm font-medium text-slate-700">Filter by Topic</Label>
-            <Select value={selectedTopic} onValueChange={setSelectedTopic}>
-              <SelectTrigger className="w-full" id="topic-filter">
-                <SelectValue placeholder="Select topic" />
-              </SelectTrigger>
-              <SelectContent>
-                {topics.map(topic => (
-                  <SelectItem key={topic} value={topic}>
-                    {topic === ALL_FILTER_VALUE ? "All Topics" : capitalize(topic)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="flex-1 sm:flex-grow-0 flex flex-col space-y-1.5 min-w-[180px] sm:min-w-[200px]">
-            <Label htmlFor="difficulty-filter" className="text-sm font-medium text-slate-700">Filter by Difficulty</Label>
-            <Select value={selectedDifficulty} onValueChange={setSelectedDifficulty}>
-              <SelectTrigger className="w-full" id="difficulty-filter">
-                <SelectValue placeholder="Select difficulty" />
-              </SelectTrigger>
-              <SelectContent>
-                {difficulties.map(difficulty => (
-                  <SelectItem key={difficulty} value={difficulty}>
-                    {difficulty === ALL_FILTER_VALUE ? "All Difficulties" : capitalize(difficulty)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-      </div>
-
-      {filteredCourses.length > 0 ? (
+      {favoriteCourses.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredCourses.map((course) => {
-            const isFav = isFavorite(course.id);
+          {favoriteCourses.map((course) => {
+            const isFav = isFavorite(course.id); // Will always be true here unless state changes mid-render
+
             const handleFavoriteToggle = (e: MouseEvent<HTMLButtonElement>) => {
               e.stopPropagation();
               e.preventDefault();
               if (isFav) {
                 removeFavorite(course.id);
               } else {
+                // This case might not be strictly needed if only favs are shown,
+                // but good for robustness if card component is reused.
                 addFavorite(course.id);
               }
             };
 
             return (
+              // Each card is a link to its detail page
               <Link key={course.id} href={`/course/${course.id}`} className="flex">
                 <Card data-testid="course-card" className="flex flex-col w-full bg-white hover:shadow-lg transition-shadow duration-200 rounded-xl border border-slate-200">
                   <CardHeader className="pb-4 relative">
@@ -201,10 +143,15 @@ const HomePage = () => {
           })}
         </div>
       ) : (
-        <p className="text-center text-slate-500 py-10">No courses match the selected filters.</p>
+        <div className="text-center text-slate-500 py-10">
+          <p className="mb-4">You haven't added any courses to your favorites yet.</p>
+          <Link href="/" className="inline-block bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">
+            Browse Courses
+          </Link>
+        </div>
       )}
     </div>
   );
 };
 
-export default HomePage;
+export default FavoritesPage;
