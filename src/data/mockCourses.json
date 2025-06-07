@@ -1,0 +1,47 @@
+[
+  {
+    "id": "course_001",
+    "name": "Introduction to Web Development",
+    "description": "Learn the fundamentals of web development, including HTML, CSS, and JavaScript.",
+    "duration": "8 weeks",
+    "price": 49.99,
+    "topic": "Web Development",
+    "difficulty": "Beginner"
+  },
+  {
+    "id": "course_002",
+    "name": "Advanced JavaScript Concepts",
+    "description": "Dive deep into advanced JavaScript topics like closures, promises, and async/await.",
+    "duration": "6 weeks",
+    "price": 79.99,
+    "topic": "Web Development",
+    "difficulty": "Intermediate"
+  },
+  {
+    "id": "course_003",
+    "name": "Python for Data Science",
+    "description": "Explore how to use Python for data analysis, visualization, and machine learning.",
+    "duration": "10 weeks",
+    "price": 99.99,
+    "topic": "Data Science",
+    "difficulty": "Intermediate"
+  },
+  {
+    "id": "course_004",
+    "name": "Cybersecurity Essentials",
+    "description": "Understand the basics of cybersecurity, common threats, and defensive measures.",
+    "duration": "4 weeks",
+    "price": 69.99,
+    "topic": "Cybersecurity",
+    "difficulty": "Beginner"
+  },
+  {
+    "id": "course_005",
+    "name": "Mastering React and Next.js",
+    "description": "Build powerful server-rendered web applications with React and Next.js.",
+    "duration": "12 weeks",
+    "price": 129.99,
+    "topic": "Web Development",
+    "difficulty": "Advanced"
+  }
+]
